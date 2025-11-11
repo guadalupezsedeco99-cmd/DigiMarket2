@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DigiMarket – Gestión de Productos Digitales</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#000000" />
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: "Poppins", sans-serif;
+    }
+
+    header {
+      background: linear-gradient(135deg, #000000d8, #343a40);
+      color: white;
+      padding: 3rem 1rem;
+      text-align: center;
+      border-bottom: 5px solid #ffc107;
+    }
+
+    header h1 {
+      font-weight: 700;
+      font-size: 2.5rem;
+    }
+
+    .btn-dark {
+      background-color: #000000cc !important;
+      border: none;
+    }
+
+    .btn-dark:hover {
+      background-color: #212121 !important;
+    }
+
+    .card {
+      border: none;
+      border-radius: 15px;
+      transition: all 0.3s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .thumb {
+      height: 80px;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+
+    .thumbs-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .5rem;
+    }
+
+    /* Botones flotantes */
+    #btnInstall, #btnDownload {
+      position: fixed;
+      right: 16px;
+      border: 0;
+      border-radius: 50px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      z-index: 9999;
+      transition: transform 0.2s ease;
+    }
+
+    #btnInstall:hover, #btnDownload:hover {
+      transform: scale(1.1);
+    }
+
+    #btnInstall {
+      bottom: 80px;
+      background: #000000cc;
+      padding: 12px 18px;
+    }
+
+    #btnDownload {
+      bottom: 16px;
+      background: #198754;
+      padding: 12px 18px;
+    }
+
+    #btnInstall[hidden], #btnDownload[hidden] {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Encabezado -->
+  <header>
+    <h1>DigiMarket</h1>
+    <p class="lead mb-0">Plataforma de gestión de productos y servicios digitales</p>
+  </header>
+
+  <div class="container py-5">
+    <div class="text-center mb-4">
+      <button type="button" class="btn btn-dark btn-lg" data-bs-toggle="modal" data-bs-target="#productoModal">
+        <i class="bi bi-plus-circle me-2"></i> Agregar Producto o Servicio
+      </button>
+
+      <button id="clearAll" class="btn btn-outline-danger btn-lg ms-2">
+        <i class="bi bi-trash3 me-2"></i> Borrar todo
+      </button>
+    </div>
+
+    <div id="productsContainer" class="row mt-4"></div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal fade" id="productoModal" tabindex="-1" aria-labelledby="productoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-dark text-white">
+          <h5 class="modal-title" id="productoModalLabel">Agregar Nuevo Producto o Servicio Digital</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <form id="productoForm">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Nombre *</label>
+                <input type="text" id="nombreProducto" class="form-control" placeholder="Ej: Curso de Marketing Digital" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Categoría *</label>
+                <input type="text" id="categoria" class="form-control" placeholder="Ej: Diseño, Desarrollo, Cursos..." required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Precio *</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" id="precio" class="form-control" placeholder="0.00" step="0.01" required>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Descripción</label>
+                <textarea id="descripcion" class="form-control" rows="3" placeholder="Describe brevemente el producto o servicio..."></textarea>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Imágenes (una o varias)</label>
+                <input type="file" id="imagenes" class="form-control" accept="image/*" multiple>
+                <div class="form-text">Las imágenes se guardan localmente como Data URLs (límite aproximado total 5MB).</div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" form="productoForm" class="btn btn-dark">Guardar Producto</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let productos = [];
+    const LS_KEY = 'productos_digimarket';
+    const modal = new bootstrap.Modal(document.getElementById('productoModal'));
+
+    function saveToLS() { localStorage.setItem(LS_KEY, JSON.stringify(productos)); }
+    function loadFromLS() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        productos = raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        productos = [];
+        localStorage.removeItem(LS_KEY);
+      }
+    }
+
+    function readFilesAsDataURLs(fileList) {
+      const files = Array.from(fileList || []);
+      const readers = files.map(file => new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve({ name: file.name, dataURL: fr.result });
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      }));
+      return Promise.all(readers);
+    }
+
+    function renderProducts() {
+      const container = document.getElementById('productsContainer');
+      container.innerHTML = '';
+
+      productos.forEach((producto, idx) => {
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-4 mb-4';
+
+        const thumbs = (producto.imagenes || []).slice(0, 3)
+          .map(img => `<img class="thumb w-100" src="${img.dataURL}" alt="${producto.nombre}">`)
+          .join('');
+
+        const extraCount = (producto.imagenes?.length || 0) - 3;
+        const extraBadge = extraCount > 0 ? `<span class="badge bg-secondary">+${extraCount} más</span>` : '';
+
+        col.innerHTML = `
+          <div class="card h-100 shadow-sm">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">${producto.nombre}</h5>
+              <button class="btn btn-sm btn-light" data-action="delete" data-index="${idx}" title="Eliminar">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>
+            <div class="card-body">
+              <p><strong>Categoría:</strong> ${producto.categoria}</p>
+              <p><strong>Precio:</strong> $${parseFloat(producto.precio).toFixed(2)}</p>
+              ${producto.descripcion ? `<p class="text-muted small"><em>${producto.descripcion}</em></p>` : ''}
+              ${producto.imagenes?.length
+                ? `<div class="thumbs-grid mt-2">${thumbs}</div>${extraBadge ? `<div class="mt-2">${extraBadge}</div>` : ''}`
+                : '<div class="text-muted"><em>Sin imágenes</em></div>'}
+            </div>
+          </div>`;
+        container.appendChild(col);
+      });
+
+      container.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const i = Number(e.currentTarget.getAttribute('data-index'));
+          productos.splice(i, 1);
+          saveToLS();
+          renderProducts();
+          showToast('Producto eliminado');
+        });
+      });
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast align-items-center text-bg-${type === 'success' ? 'success' : 'danger'} position-fixed top-0 end-0 m-3`;
+      toast.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">${msg}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>`;
+      document.body.appendChild(toast);
+      const bsToast = new bootstrap.Toast(toast);
+      bsToast.show();
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    document.getElementById('productoForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const imagenesInput = document.getElementById('imagenes');
+      let imagenes = [];
+      try { imagenes = await readFilesAsDataURLs(imagenesInput.files); } 
+      catch { showToast('Error al leer las imágenes', 'error'); }
+
+      const producto = {
+        id: crypto.randomUUID(),
+        nombre: document.getElementById('nombreProducto').value.trim(),
+        categoria: document.getElementById('categoria').value.trim(),
+        precio: document.getElementById('precio').value,
+        descripcion: document.getElementById('descripcion').value.trim(),
+        imagenes
+      };
+
+      productos.push(producto);
+      saveToLS();
+      renderProducts();
+      e.target.reset();
+      modal.hide();
+      showToast('Producto guardado correctamente');
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadFromLS();
+      renderProducts();
+      document.getElementById('clearAll').addEventListener('click', () => {
+        if (confirm('¿Borrar todos los productos guardados?')) {
+          productos = [];
+          saveToLS();
+          renderProducts();
+          showToast('LocalStorage limpiado');
+        }
+      });
+    });
+
+    // Descargar datos
+    document.getElementById('btnDownload').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(productos, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'productos_digimarket.json';
+      link.click();
+    });
+  </script>
+
+  <!-- Botones flotantes -->
+  <button id="btnInstall" hidden>📲 Instalar App</button>
+  <button id="btnDownload">⬇️ Descargar</button>
+
+  <script>
+    // PWA instalación
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('SW registrado:', reg.scope))
+          .catch(err => console.warn('SW falló:', err));
+      });
+    }
+
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('btnInstall').hidden = false;
+    });
+
+    document.getElementById('btnInstall').addEventListener('click', async (e) => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') e.target.hidden = true;
+      deferredPrompt = null;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      document.getElementById('btnInstall').hidden = true;
+    });
+  </script>
+</body>
+</html>
+
+
